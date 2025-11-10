@@ -38,7 +38,7 @@ def get_gspread_client():
 
 
 client = get_gspread_client()
-sheet = client.open("Finance Tracker").sheet1
+sheet = client.open("FinanceTracker").sheet1
 
 
 @app.get("/")
@@ -56,3 +56,4 @@ async def add_entry(data: dict):
     sheet.append_row([date, salary, amount, description])
 
     return {"message": "Entry saved successfully ✅"}
+
