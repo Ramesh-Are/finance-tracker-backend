@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 app = FastAPI()
 
-# Enable CORS
+# Enable CORS so your HTML can call the API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,16 +36,15 @@ def get_gspread_client():
     )
     return gspread.authorize(creds)
 
-
 client = get_gspread_client()
-sheet = client.open("FinanceTracker").sheet1
+sheet = client.open("FinanceTracker").sheet1  # Make sure this name matches your Google Sheet
 
-
+# Root
 @app.get("/")
 async def home():
     return {"message": "Finance Tracker Backend Running ✅"}
 
-
+# Add a new entry
 @app.post("/add_entry")
 async def add_entry(data: dict):
     date = data.get("date", "")
@@ -54,6 +53,11 @@ async def add_entry(data: dict):
     description = data.get("description", "")
 
     sheet.append_row([date, salary, amount, description])
-
     return {"message": "Entry saved successfully ✅"}
+
+# Get all entries
+@app.get("/get_data")
+async def get_data():
+    rows = sheet.get_all_values()  # Returns all rows including headers
+    return rows
 
