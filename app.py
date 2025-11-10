@@ -58,8 +58,24 @@ async def add_entry(data: dict):
 
 # Get all entries (with row numbers)
 @app.get("/get_data")
-async def get_d_
+async def get_data():
+    rows = sheet.get_all_values()
+    data_with_index = []
+    for i, row in enumerate(rows[1:], start=2):  # Skip header
+        data_with_index.append({
+            "row": i,
+            "date": row[0],
+            "salary": row[1],
+            "amount": row[2],
+            "description": row[3]
+        })
+    return data_with_index
 
-
-
-
+# Delete an entry
+@app.delete("/delete_entry/{row_number}")
+async def delete_entry(row_number: int):
+    try:
+        sheet.delete_row(row_number)
+        return {"message": f"Entry in row {row_number} deleted successfully!"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
