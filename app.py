@@ -90,11 +90,19 @@ async def get_data():
     return result
 
 
-# ✅ Delete entry using real sheet row number
 @app.delete("/delete_entry/{row_number}")
 async def delete_entry(row_number: int):
     try:
+        row = sheet.row_values(row_number)
+
+        # ✅ Check if row is empty
+        if len(row) == 0:
+            raise HTTPException(status_code=400, detail="Row is empty — cannot delete")
+
         sheet.delete_row(row_number)
         return {"message": f"Row {row_number} deleted ✅"}
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Delete failed: {str(e)}")
+
+
