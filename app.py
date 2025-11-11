@@ -88,21 +88,28 @@ async def get_data():
         })
 
     return result
-
-
 @app.delete("/delete_entry/{row_number}")
 async def delete_entry(row_number: int):
     try:
-        row = sheet.row_values(row_number)
+        rows = sheet.get_all_values()
 
-        # ✅ Check if row is empty
-        if len(row) == 0:
-            raise HTTPException(status_code=400, detail="Row is empty — cannot delete")
+        # ✅ If user selects a row beyond actual data
+        if row_number > len(rows):
+            raise HTTPException(status_code=400, detail="Row does not exist")
 
+        # ✅ Google Sheets cannot delete empty/partially empty row, so we validate properly
+        row = rows[row_number - 1]  # because rows[] is zero-indexed
+
+        if len(row) == 0 or all(cell.strip() == "" for cell in row):
+            raise HTTPException(status_code=400, detail="Cannot delete an empty row")
+
+        # ✅ Now safe to delete from sheet
         sheet.delete_row(row_number)
         return {"message": f"Row {row_number} deleted ✅"}
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Delete failed: {str(e)}")
+
+
 
 
