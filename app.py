@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 app = FastAPI()
 
-# CORS
+# ✅ Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,32 +16,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Google Sheet Setup
+# ✅ Google Sheets Auth
 def get_gspread_client():
+    # Render Deployment
     if "GOOGLE_CREDENTIALS" in os.environ:
         creds_json = json.loads(os.environ["GOOGLE_CREDENTIALS"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(
             creds_json,
-            ["https://www.googleapis.com/auth/spreadsheets",
-             "https://www.googleapis.com/auth/drive"]
+            [
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ],
         )
         return gspread.authorize(creds)
 
+    # Local development
     creds = ServiceAccountCredentials.from_json_keyfile_name(
         "credentials.json",
-        ["https://www.googleapis.com/auth/spreadsheets",
-         "https://www.googleapis.com/auth/drive"]
+        [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ],
     )
     return gspread.authorize(creds)
 
-client = get_gspread_client()
-sheet = client.open("FinanceTracker").sheet1
 
+client = get_gspread_client()
+sheet = client.open("FinanceTracker").sheet1  # ✅ Must match your sheet name
+
+# ✅ Root
 @app.get("/")
 async def home():
-    return {"message": "Backend Running ✅"}
+    return {"message": "Finance API Running ✅"}
 
-# ✅ Add Entry
+
+# ✅ Add an entry
 @app.post("/add_entry")
 async def add_entry(data: dict):
     date = data.get("date", "")
@@ -50,33 +59,42 @@ async def add_entry(data: dict):
     description = data.get("description", "")
 
     sheet.append_row([date, salary, amount, description])
-    return {"message": "Entry saved successfully ✅"}
+    return {"message": "Entry saved ✅"}
 
-# ✅ Get Data with Row Numbers (Fix)
+
+# ✅ Get all entries with row numbers FOR DELETE
 @app.get("/get_data")
 async def get_data():
     rows = sheet.get_all_values()
 
-    if len(rows) <= 1:
-        return []  # No data
+    if not rows:
+        return []
 
     result = []
-    for index, row in enumerate(rows[1:], start=2):  
+    # Start from row 2 (skip headers)
+    for row_index in range(2, len(rows) + 1):
+        row = sheet.row_values(row_index)
+
+        # Ensure 4 columns exist
+        while len(row) < 4:
+            row.append("")
+
         result.append({
-            "row": index,
-            "date": row[0] if len(row) > 0 else "",
-            "salary": row[1] if len(row) > 1 else "",
-            "amount": row[2] if len(row) > 2 else "",
-            "description": row[3] if len(row) > 3 else "",
+            "row": row_index,   # ✅ real Google Sheet row number
+            "date": row[0],
+            "salary": row[1],
+            "amount": row[2],
+            "description": row[3]
         })
 
     return result
 
-# ✅ Delete Entry
+
+# ✅ Delete entry using real sheet row number
 @app.delete("/delete_entry/{row_number}")
 async def delete_entry(row_number: int):
     try:
         sheet.delete_row(row_number)
-        return {"message": "Deleted successfully ✅"}
+        return {"message": f"Row {row_number} deleted ✅"}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Delete failed: {str(e)}")
