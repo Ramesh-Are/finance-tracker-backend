@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 app = FastAPI()
 
-# Enable CORS
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Google Sheets Setup
+# Google Sheet Setup
 def get_gspread_client():
     if "GOOGLE_CREDENTIALS" in os.environ:
         creds_json = json.loads(os.environ["GOOGLE_CREDENTIALS"])
@@ -35,14 +35,13 @@ def get_gspread_client():
     return gspread.authorize(creds)
 
 client = get_gspread_client()
-sheet = client.open("FinanceTracker").sheet1  # Make sure this matches your Google Sheet name
+sheet = client.open("FinanceTracker").sheet1
 
-# Root
 @app.get("/")
 async def home():
-    return {"message": "Finance Tracker Backend Running ✅"}
+    return {"message": "Backend Running ✅"}
 
-# Add a new entry
+# ✅ Add Entry
 @app.post("/add_entry")
 async def add_entry(data: dict):
     date = data.get("date", "")
@@ -50,32 +49,34 @@ async def add_entry(data: dict):
     amount = data.get("amount", "")
     description = data.get("description", "")
 
-    if not date or (salary == "" and amount == "") or not description:
-        raise HTTPException(status_code=400, detail="Invalid data")
-
     sheet.append_row([date, salary, amount, description])
     return {"message": "Entry saved successfully ✅"}
 
-# Get all entries (with row numbers)
+# ✅ Get Data with Row Numbers (Fix)
 @app.get("/get_data")
 async def get_data():
     rows = sheet.get_all_values()
-    data_with_index = []
-    for i, row in enumerate(rows[1:], start=2):  # Skip header
-        data_with_index.append({
-            "row": i,
-            "date": row[0],
-            "salary": row[1],
-            "amount": row[2],
-            "description": row[3]
-        })
-    return data_with_index
 
-# Delete an entry
+    if len(rows) <= 1:
+        return []  # No data
+
+    result = []
+    for index, row in enumerate(rows[1:], start=2):  
+        result.append({
+            "row": index,
+            "date": row[0] if len(row) > 0 else "",
+            "salary": row[1] if len(row) > 1 else "",
+            "amount": row[2] if len(row) > 2 else "",
+            "description": row[3] if len(row) > 3 else "",
+        })
+
+    return result
+
+# ✅ Delete Entry
 @app.delete("/delete_entry/{row_number}")
 async def delete_entry(row_number: int):
     try:
         sheet.delete_row(row_number)
-        return {"message": f"Entry in row {row_number} deleted successfully!"}
+        return {"message": "Deleted successfully ✅"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
